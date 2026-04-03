@@ -12,6 +12,7 @@ const StoryReader = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [bookmarked, setBookmarked] = useState(false);
   const [direction, setDirection] = useState(1);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
 
   useEffect(() => {
     if (story) {
