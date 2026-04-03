@@ -60,8 +60,6 @@ const StoryReader = () => {
     setBookmarked(!bookmarked);
   };
 
-  // Swipe handling
-  const [touchStart, setTouchStart] = useState<number | null>(null);
   const handleTouchStart = (e: React.TouchEvent) => setTouchStart(e.touches[0].clientX);
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (touchStart === null) return;
