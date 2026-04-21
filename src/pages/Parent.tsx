@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import { stories } from "@/data/stories";
 import MascotInteractive from "@/components/MascotInteractive";
-import MagicalBackground from "@/components/MagicalBackground";
+
 
 interface ProgressEntry {
   currentPage: number;
@@ -61,10 +61,7 @@ const Parent = () => {
   recommendations.push("Baca bersama sebelum tidur untuk bonding yang lebih baik 💖");
 
   return (
-    <div className="min-h-screen pb-24 md:pb-0 relative">
-      <div className="absolute inset-0 -z-10">
-        <MagicalBackground intensity="low" />
-      </div>
+    <div className="min-h-screen pb-32 md:pb-0 relative">
       <Navbar />
       <div className="px-4 py-6 max-w-3xl mx-auto relative z-10">
         {/* Header */}

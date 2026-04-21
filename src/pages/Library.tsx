@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import StoryCardPremium from "@/components/StoryCardPremium";
 import HorizontalStoryRow from "@/components/HorizontalStoryRow";
-import MagicalBackground from "@/components/MagicalBackground";
+
 import { stories, categories } from "@/data/stories";
 
 const ageFilters = ["All", "3-5", "6-8", "9-10"];
@@ -28,10 +28,7 @@ const Library = () => {
   });
 
   return (
-    <div className="min-h-screen pb-24 md:pb-0 relative">
-      <div className="absolute inset-0 -z-10">
-        <MagicalBackground intensity="medium" />
-      </div>
+    <div className="min-h-screen pb-32 md:pb-0 relative">
       <Navbar />
       <div className="py-6 max-w-5xl mx-auto relative z-10">
         <div className="px-4">

@@ -4,7 +4,7 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-mo
 import { ChevronLeft, ChevronRight, X, BookOpen, Bookmark, BookmarkCheck, Volume2, VolumeX } from "lucide-react";
 import { stories } from "@/data/stories";
 import MascotInteractive from "@/components/MascotInteractive";
-import MagicalBackground from "@/components/MagicalBackground";
+
 
 const StoryReader = () => {
   const { id } = useParams();
@@ -131,10 +131,7 @@ const StoryReader = () => {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Ambient magical background */}
-      <div className="absolute inset-0 -z-10">
-        <MagicalBackground intensity="high" />
-      </div>
+      {/* Living world background is mounted globally in App */}
 
       {/* Top bar */}
       <div className="relative z-20 flex items-center justify-between px-4 py-3 glass-card">
