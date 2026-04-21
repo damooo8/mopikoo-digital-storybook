@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { ChevronLeft, ChevronRight, X, BookOpen, Bookmark, BookmarkCheck, Volume2, VolumeX } from "lucide-react";
 import { stories } from "@/data/stories";
-import mascot from "@/assets/mopikoo-mascot.png";
+import MascotInteractive from "@/components/MascotInteractive";
+import MagicalBackground from "@/components/MagicalBackground";
 
 const StoryReader = () => {
   const { id } = useParams();
@@ -15,6 +16,17 @@ const StoryReader = () => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [readAloud, setReadAloud] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+
+  // Parallax mouse tracking
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const bgX = useTransform(mouseX, [-0.5, 0.5], [-15, 15]);
+  const bgY = useTransform(mouseY, [-0.5, 0.5], [-10, 10]);
+  const fgX = useTransform(mouseX, [-0.5, 0.5], [-30, 30]);
+  const fgY = useTransform(mouseY, [-0.5, 0.5], [-20, 20]);
+
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (story) {
@@ -29,7 +41,6 @@ const StoryReader = () => {
     setBookmarked(bookmarks.includes(id));
   }, [id]);
 
-  // Read aloud with Web Speech API
   useEffect(() => {
     if (readAloud && story) {
       window.speechSynthesis.cancel();
@@ -45,6 +56,15 @@ const StoryReader = () => {
     }
     return () => { window.speechSynthesis.cancel(); };
   }, [currentPage, readAloud, story]);
+
+  // Show celebration on last page
+  useEffect(() => {
+    if (story && currentPage === story.pages.length - 1) {
+      setShowCelebration(true);
+    } else {
+      setShowCelebration(false);
+    }
+  }, [currentPage, story]);
 
   if (!story) {
     return (
@@ -81,47 +101,63 @@ const StoryReader = () => {
     setTouchStart(null);
   };
 
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    mouseX.set((e.clientX - rect.left) / rect.width - 0.5);
+    mouseY.set((e.clientY - rect.top) / rect.height - 0.5);
+  };
+
+  // 3D book-flip variants
   const variants = {
     enter: (d: number) => ({
-      x: d > 0 ? 300 : -300,
+      x: d > 0 ? 400 : -400,
       opacity: 0,
-      rotateY: d > 0 ? 15 : -15,
+      rotateY: d > 0 ? 35 : -35,
+      scale: 0.9,
     }),
-    center: { x: 0, opacity: 1, rotateY: 0 },
+    center: { x: 0, opacity: 1, rotateY: 0, scale: 1 },
     exit: (d: number) => ({
-      x: d > 0 ? -300 : 300,
+      x: d > 0 ? -400 : 400,
       opacity: 0,
-      rotateY: d > 0 ? -15 : 15,
+      rotateY: d > 0 ? -35 : 35,
+      scale: 0.9,
     }),
   };
 
   return (
     <div
-      className="min-h-screen bg-gradient-to-b from-background via-muted/30 to-background flex flex-col"
+      className="min-h-screen flex flex-col relative overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      {/* Ambient magical background */}
+      <div className="absolute inset-0 -z-10">
+        <MagicalBackground intensity="high" />
+      </div>
+
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 glass-card">
-        <button onClick={() => navigate(-1)} className="p-2 rounded-xl hover:bg-muted transition-colors">
+      <div className="relative z-20 flex items-center justify-between px-4 py-3 glass-card">
+        <button onClick={() => navigate(-1)} className="p-2 rounded-xl hover:bg-muted/60 transition-colors">
           <X size={22} className="text-foreground" />
         </button>
-        <div className="flex items-center gap-2">
-          <BookOpen size={16} className="text-secondary" />
-          <span className="text-xs font-bold text-muted-foreground">
+        <div className="flex items-center gap-2 glass-bubble px-3 py-1 rounded-full">
+          <BookOpen size={14} className="text-primary" />
+          <span className="text-xs font-bold text-foreground">
             {currentPage + 1} / {story.pages.length}
           </span>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setReadAloud(!readAloud)}
-            className={`p-2 rounded-xl transition-colors ${readAloud ? "bg-secondary/20 text-secondary" : "hover:bg-muted text-muted-foreground"}`}
+            className={`p-2 rounded-xl transition-colors ${readAloud ? "bg-primary/20 text-primary shadow-glow-primary" : "hover:bg-muted/60 text-muted-foreground"}`}
+            aria-label="Toggle read aloud"
           >
             {readAloud ? <Volume2 size={20} /> : <VolumeX size={20} />}
           </button>
-          <button onClick={toggleBookmark} className="p-2 rounded-xl hover:bg-muted transition-colors">
+          <button onClick={toggleBookmark} className="p-2 rounded-xl hover:bg-muted/60 transition-colors" aria-label="Bookmark">
             {bookmarked ? (
-              <BookmarkCheck size={22} className="text-primary" />
+              <BookmarkCheck size={22} className="text-primary fill-primary/30" />
             ) : (
               <Bookmark size={22} className="text-muted-foreground" />
             )}
@@ -130,16 +166,21 @@ const StoryReader = () => {
       </div>
 
       {/* Progress bar */}
-      <div className="h-1.5 bg-muted/50">
+      <div className="relative z-20 h-1.5 bg-muted/40">
         <motion.div
-          className="h-full bg-gradient-to-r from-secondary to-kid-blue rounded-full"
+          className="h-full gradient-magic rounded-full shadow-glow-primary"
           animate={{ width: `${((currentPage + 1) / story.pages.length) * 100}%` }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         />
       </div>
 
       {/* Content - illustration dominant */}
-      <div className="flex-1 flex flex-col relative overflow-hidden" style={{ perspective: "1200px" }}>
+      <div
+        ref={containerRef}
+        onMouseMove={handleMouseMove}
+        className="flex-1 flex flex-col relative overflow-hidden"
+        style={{ perspective: "1500px" }}
+      >
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={currentPage}
@@ -148,51 +189,116 @@ const StoryReader = () => {
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ type: "spring", stiffness: 250, damping: 28 }}
+            transition={{ type: "spring", stiffness: 200, damping: 25 }}
             className="flex-1 flex flex-col"
+            style={{ transformStyle: "preserve-3d" }}
           >
-            {/* Illustration area - 65% of screen */}
-            <div className="flex-[2] bg-muted/40 relative flex items-center justify-center overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-b from-secondary/5 via-transparent to-background/80" />
-              <div className="flex flex-col items-center gap-3 p-6 relative z-10">
-                <motion.img
-                  src={mascot}
-                  alt=""
-                  width={80}
-                  height={80}
-                  className="opacity-20"
-                  animate={isSpeaking ? { scale: [1, 1.1, 1] } : {}}
-                  transition={{ repeat: Infinity, duration: 0.6 }}
-                />
-                <p className="text-xs text-muted-foreground font-semibold italic max-w-xs text-center">
-                  🎨 {page.illustrationPrompt}
-                </p>
-              </div>
-              {/* Decorative elements */}
-              <div className="absolute top-4 right-6 text-2xl animate-twinkle">✨</div>
-              <div className="absolute bottom-8 left-6 text-xl animate-twinkle" style={{ animationDelay: "1s" }}>⭐</div>
+            {/* Illustration area - 65% with parallax layers */}
+            <div className="flex-[2] relative flex items-center justify-center overflow-hidden">
+              {/* Background parallax layer */}
+              <motion.div
+                style={{ x: bgX, y: bgY }}
+                className="absolute inset-0"
+              >
+                <div className="absolute inset-0 gradient-aurora opacity-50" />
+                {/* Distant stars */}
+                <div className="absolute top-1/4 left-1/4 w-2 h-2 rounded-full bg-foreground/40 blur-sm" />
+                <div className="absolute top-1/3 right-1/4 w-1.5 h-1.5 rounded-full bg-primary/60 blur-sm" />
+                <div className="absolute bottom-1/3 left-1/3 w-2 h-2 rounded-full bg-secondary/50 blur-sm" />
+              </motion.div>
+
+              {/* Midground glow */}
+              <motion.div
+                style={{ x: bgX, y: bgY }}
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <div className="w-3/4 h-3/4 rounded-full bg-gradient-to-br from-primary/20 via-secondary/15 to-accent/20 blur-3xl" />
+              </motion.div>
+
+              {/* Foreground illustration placeholder */}
+              <motion.div
+                style={{ x: fgX, y: fgY }}
+                className="relative z-10 flex flex-col items-center gap-4 p-6"
+              >
+                <motion.div
+                  animate={isSpeaking ? { scale: [1, 1.1, 1] } : { y: [0, -10, 0] }}
+                  transition={{ repeat: Infinity, duration: isSpeaking ? 0.6 : 3, ease: "easeInOut" }}
+                >
+                  <MascotInteractive size={120} mood={isSpeaking ? "celebrate" : "idle"} />
+                </motion.div>
+                <div className="glass-bubble rounded-2xl px-4 py-2 max-w-xs">
+                  <p className="text-xs text-muted-foreground font-semibold italic text-center">
+                    🎨 {page.illustrationPrompt}
+                  </p>
+                </div>
+              </motion.div>
+
+              {/* Decorative twinkling */}
+              <div className="absolute top-6 right-8 text-2xl animate-twinkle">✨</div>
+              <div className="absolute bottom-12 left-8 text-xl animate-twinkle" style={{ animationDelay: "1s" }}>⭐</div>
+              <div className="absolute top-1/2 right-12 text-lg animate-twinkle" style={{ animationDelay: "2s" }}>💫</div>
             </div>
 
-            {/* Text area - soft rounded container */}
-            <div className="flex-[1] flex items-center justify-center px-6 py-4">
+            {/* Text area - soft semi-transparent bubble */}
+            <div className="flex-[1] flex items-center justify-center px-6 py-4 relative z-10">
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-card rounded-3xl p-6 shadow-dreamy max-w-lg w-full"
+                transition={{ delay: 0.3 }}
+                className="glass-bubble rounded-3xl p-6 max-w-lg w-full relative"
               >
-                <p className="text-base md:text-lg font-bold text-foreground leading-relaxed text-center">
+                {/* Highlight strip when speaking */}
+                {isSpeaking && (
+                  <motion.div
+                    className="absolute inset-0 rounded-3xl pointer-events-none"
+                    animate={{ opacity: [0.3, 0.7, 0.3] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                    style={{ boxShadow: "inset 0 0 20px hsl(var(--glow-primary) / 0.5)" }}
+                  />
+                )}
+                <p className={`text-base md:text-lg font-bold leading-relaxed text-center transition-colors ${
+                  isSpeaking ? "text-primary" : "text-foreground"
+                }`}>
                   {page.text}
                 </p>
               </motion.div>
             </div>
           </motion.div>
         </AnimatePresence>
+
+        {/* Celebration overlay on last page */}
+        <AnimatePresence>
+          {showCelebration && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 pointer-events-none flex items-center justify-center z-20"
+            >
+              {Array.from({ length: 16 }).map((_, i) => (
+                <motion.span
+                  key={i}
+                  className="absolute text-2xl"
+                  initial={{ x: 0, y: 0, opacity: 0 }}
+                  animate={{
+                    x: (Math.random() - 0.5) * 400,
+                    y: (Math.random() - 0.5) * 400,
+                    opacity: [0, 1, 0],
+                    rotate: Math.random() * 360,
+                  }}
+                  transition={{ duration: 2, delay: i * 0.05, repeat: Infinity, repeatDelay: 1 }}
+                >
+                  {["✨", "⭐", "🌟", "💫", "🎉"][i % 5]}
+                </motion.span>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Reading mode toggle */}
-      <div className="flex justify-center py-2">
-        <div className="inline-flex items-center bg-muted/60 rounded-full p-0.5 text-[10px] font-bold">
+      <div className="relative z-20 flex justify-center py-2">
+        <div className="inline-flex items-center glass-bubble rounded-full p-0.5 text-[10px] font-bold">
           <button
             onClick={() => setReadAloud(false)}
             className={`px-3 py-1 rounded-full transition-all ${!readAloud ? "bg-card shadow-card text-foreground" : "text-muted-foreground"}`}
@@ -201,7 +307,7 @@ const StoryReader = () => {
           </button>
           <button
             onClick={() => setReadAloud(true)}
-            className={`px-3 py-1 rounded-full transition-all ${readAloud ? "bg-secondary text-secondary-foreground shadow-glow-secondary" : "text-muted-foreground"}`}
+            className={`px-3 py-1 rounded-full transition-all ${readAloud ? "magical-button text-primary-foreground" : "text-muted-foreground"}`}
           >
             🔊 Dengan Suara
           </button>
@@ -209,27 +315,25 @@ const StoryReader = () => {
       </div>
 
       {/* Navigation */}
-      <div className="flex items-center justify-between px-4 py-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="relative z-20 flex items-center justify-between px-4 py-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <button
           onClick={goPrev}
           disabled={isFirst}
-          className="flex items-center gap-1 px-5 py-3 rounded-2xl font-bold text-sm bg-muted text-foreground disabled:opacity-30 bounce-hover"
+          className="flex items-center gap-1 px-5 py-3 rounded-2xl font-bold text-sm glass-bubble text-foreground disabled:opacity-30 bounce-hover"
         >
           <ChevronLeft size={18} /> Kembali
         </button>
         {isLast ? (
           <motion.button
             onClick={() => navigate("/library")}
-            className="flex items-center gap-1 px-6 py-3 rounded-2xl font-extrabold text-sm bg-secondary text-secondary-foreground bounce-hover shadow-dreamy"
-            animate={{ scale: [1, 1.05, 1] }}
-            transition={{ repeat: Infinity, duration: 2 }}
+            className="flex items-center gap-2 px-6 py-3 rounded-2xl font-extrabold text-sm magical-button text-primary-foreground bounce-hover animate-pulse-magic"
           >
             🎉 Tamat!
           </motion.button>
         ) : (
           <button
             onClick={goNext}
-            className="flex items-center gap-1 px-6 py-3 rounded-2xl font-extrabold text-sm bg-secondary text-secondary-foreground bounce-hover shadow-dreamy"
+            className="flex items-center gap-1 px-6 py-3 rounded-2xl font-extrabold text-sm magical-button text-primary-foreground bounce-hover"
           >
             Lanjut <ChevronRight size={18} />
           </button>
