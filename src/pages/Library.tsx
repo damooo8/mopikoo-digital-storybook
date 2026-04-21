@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import StoryCardPremium from "@/components/StoryCardPremium";
 import HorizontalStoryRow from "@/components/HorizontalStoryRow";
+import MagicalBackground from "@/components/MagicalBackground";
 import { stories, categories } from "@/data/stories";
 
 const ageFilters = ["All", "3-5", "6-8", "9-10"];
@@ -27,22 +28,33 @@ const Library = () => {
   });
 
   return (
-    <div className="min-h-screen pb-20 md:pb-0">
+    <div className="min-h-screen pb-24 md:pb-0 relative">
+      <div className="absolute inset-0 -z-10">
+        <MagicalBackground intensity="medium" />
+      </div>
       <Navbar />
-      <div className="py-6 max-w-5xl mx-auto">
+      <div className="py-6 max-w-5xl mx-auto relative z-10">
         <div className="px-4">
-          <h1 className="text-2xl font-black text-foreground mb-1">📚 Perpustakaan Cerita</h1>
-          <p className="text-sm text-muted-foreground mb-4">Temukan cerita yang anak kamu suka</p>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4"
+          >
+            <h1 className="text-2xl md:text-3xl font-black font-display text-foreground mb-1 flex items-center gap-2">
+              <span>📚</span> <span className="gradient-text">Dunia Cerita</span>
+            </h1>
+            <p className="text-sm text-muted-foreground">Pilih buku ajaib untuk petualangan berikutnya ✨</p>
+          </motion.div>
 
           {/* Search */}
           <div className="relative mb-4">
             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Cari cerita..."
+              placeholder="Cari cerita ajaib..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-card border border-border rounded-2xl text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50 shadow-card"
+              className="w-full pl-11 pr-4 py-3 glass-bubble rounded-2xl text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
 
@@ -68,8 +80,8 @@ const Library = () => {
                 onClick={() => setSelectedAge(age)}
                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all bounce-hover ${
                   selectedAge === age
-                    ? "bg-primary text-primary-foreground shadow-playful"
-                    : "bg-muted text-muted-foreground"
+                    ? "magical-button text-primary-foreground"
+                    : "glass-bubble text-muted-foreground"
                 }`}
               >
                 {age === "All" ? "Semua Usia" : `Usia ${age}`}
@@ -118,8 +130,8 @@ const FilterChip = ({ label, icon, active, onClick }: { label: string; icon: str
     onClick={onClick}
     className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all bounce-hover ${
       active
-        ? "bg-secondary text-secondary-foreground shadow-glow-secondary"
-        : "bg-card text-muted-foreground border border-border shadow-card"
+        ? "magical-button text-primary-foreground"
+        : "glass-bubble text-muted-foreground"
     }`}
   >
     <span>{icon}</span> {label}
