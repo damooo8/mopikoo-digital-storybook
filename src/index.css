@@ -121,8 +121,7 @@
 
   body {
     @apply bg-background text-foreground font-nunito;
-    background-image: var(--gradient-sky);
-    background-attachment: fixed;
+    /* Background handled by <LivingWorld /> layer for parallax world */
     transition: background-color 0.5s ease;
   }
 }
@@ -230,6 +229,10 @@
 
   .star-twinkle {
     background: radial-gradient(circle, hsl(0 0% 100%) 0%, hsl(var(--glow-magic)) 50%, transparent 80%);
+  }
+
+  .bg-gradient-radial {
+    background-image: radial-gradient(circle at center, var(--tw-gradient-stops));
   }
 }
 
