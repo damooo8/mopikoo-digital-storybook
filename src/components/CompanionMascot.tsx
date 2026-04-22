@@ -6,18 +6,24 @@ import mascot from "@/assets/mopikoo-mascot.png";
 const hintsByRoute: Record<string, string[]> = {
   "/": [
     "Hai! Yuk kita jelajahi dunia ajaib! 🌟",
+    "Geser ke samping untuk berpindah zona ➡️",
     "Tap aku kapan saja ya! 💫",
-    "Pilih zona favoritmu di bawah ⬇️",
   ],
   "/library": [
     "Yuk pilih cerita ajaib! ✨",
     "Setiap buku punya petualangan baru 📖",
-    "Cari cerita kesukaanmu! 🔍",
   ],
   "/parent": [
     "Lihat petualangan baca anak ajaib! 📊",
     "Bonding lewat cerita itu seru 💖",
   ],
+};
+
+const hintsByZone: Record<string, string[]> = {
+  bedtime: ["Yuk siap-siap tidur dengan cerita 🌙", "Lembah ini hangat sekali ✨"],
+  forest: ["Yuk kita ke hutan ajaib! 🌲", "Aku rasa ada portal di sini 🌀"],
+  adventure: ["Petualangan menanti! 🗝️", "Berani buka peti harta karun? 🏰"],
+  heart: ["Taman penuh kasih sayang 💖", "Cerita di sini menghangatkan hati 🌸"],
 };
 
 const fallback = ["Hai aku Mopikoo! 👋", "Magic awaits ✨"];
@@ -49,6 +55,21 @@ const CompanionMascot = () => {
     const t = setTimeout(() => setHint(null), 3500);
     return () => clearTimeout(t);
   }, [location.pathname, hidden]);
+
+  // React to zone changes from the world map
+  useEffect(() => {
+    if (hidden) return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { id?: string } | undefined;
+      const zoneId = detail?.id;
+      if (!zoneId) return;
+      const list = hintsByZone[zoneId] || fallback;
+      setHint(list[Math.floor(Math.random() * list.length)]);
+      setBounceKey((k) => k + 1);
+    };
+    window.addEventListener("mopikoo:zone", handler);
+    return () => window.removeEventListener("mopikoo:zone", handler);
+  }, [hidden]);
 
   if (hidden) return null;
 
