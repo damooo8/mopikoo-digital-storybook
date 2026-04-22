@@ -1,229 +1,192 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Sparkles, BookOpen, Star } from "lucide-react";
+import { Sparkles, BookOpen } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import MascotInteractive from "@/components/MascotInteractive";
-import WorldZone from "@/components/WorldZone";
-import StoryPortal from "@/components/StoryPortal";
+import WorldMap, { WorldZoneDef } from "@/components/WorldMap";
+import StoryObject from "@/components/StoryObject";
 import { stories } from "@/data/stories";
 
 const Index = () => {
   const [progress, setProgress] = useState<Record<string, any>>({});
+  const [entered, setEntered] = useState(false);
 
   useEffect(() => {
     setProgress(JSON.parse(localStorage.getItem("mopikoo-progress") || "{}"));
   }, []);
 
-  const continueReading = Object.entries(progress).filter(
-    ([, p]: any) => p.currentPage > 0 && p.currentPage < p.totalPages - 1
+  const completedIds = useMemo(
+    () =>
+      new Set(
+        Object.entries(progress)
+          .filter(([, p]: any) => p.currentPage >= p.totalPages - 1)
+          .map(([id]) => id)
+      ),
+    [progress]
   );
+  const hasAnyProgress = Object.keys(progress).length > 0;
 
-  // Group stories by zone
-  const bedtimeStories = stories.filter((s) => s.ageRange === "3-5" || s.category === "Moral Stories");
-  const forestStories = stories.filter((s) => s.category === "Adventure" && s.ageRange !== "3-5");
-  const adventureStories = stories.filter((s) => s.category === "Adventure");
+  // Group stories by zone (with sensible fallbacks)
+  const bedtime = stories.filter((s) => s.ageRange === "3-5" || s.category === "Moral Stories");
+  const forest = stories.filter((s) => s.category === "Adventure");
+  const adventure = stories.filter((s) => s.category === "Adventure");
+  const heart = stories.filter((s) => s.category === "Moral Stories");
 
-  return (
-    <div className="min-h-screen pb-32 md:pb-0 relative">
-      <Navbar />
+  const zones: WorldZoneDef[] = [
+    {
+      id: "bedtime",
+      emoji: "🌙",
+      name: "Bedtime Valley",
+      tagline: "Lembah hangat untuk cerita pengantar tidur",
+      accent: "purple",
+      backdrop:
+        "bg-[linear-gradient(180deg,hsl(265_60%_22%)_0%,hsl(285_55%_30%)_50%,hsl(25_70%_55%)_100%)] dark:bg-[linear-gradient(180deg,hsl(245_60%_8%)_0%,hsl(275_55%_18%)_55%,hsl(25_60%_30%)_100%)]",
+      children: bedtime.map((s, i) => (
+        <StoryObject key={s.id} {...s} index={i} kind="book" completed={completedIds.has(s.id)} />
+      )),
+    },
+    {
+      id: "forest",
+      emoji: "🌲",
+      name: "Magic Forest",
+      tagline: "Hutan mistis penuh portal dan rahasia ajaib",
+      accent: "teal",
+      backdrop:
+        "bg-[linear-gradient(180deg,hsl(195_70%_45%)_0%,hsl(180_60%_35%)_50%,hsl(165_60%_25%)_100%)] dark:bg-[linear-gradient(180deg,hsl(195_60%_12%)_0%,hsl(180_55%_18%)_50%,hsl(165_60%_14%)_100%)]",
+      children: forest.map((s, i) => (
+        <StoryObject key={s.id} {...s} index={i} kind="portal" completed={completedIds.has(s.id)} />
+      )),
+    },
+    {
+      id: "adventure",
+      emoji: "🏰",
+      name: "Adventure Land",
+      tagline: "Dunia berani — kastil, peta, dan harta karun",
+      accent: "orange",
+      backdrop:
+        "bg-[linear-gradient(180deg,hsl(35_95%_70%)_0%,hsl(20_85%_60%)_50%,hsl(330_70%_55%)_100%)] dark:bg-[linear-gradient(180deg,hsl(25_70%_25%)_0%,hsl(15_65%_22%)_50%,hsl(330_50%_22%)_100%)]",
+      children: adventure.map((s, i) => (
+        <StoryObject key={s.id} {...s} index={i} kind="chest" completed={completedIds.has(s.id)} />
+      )),
+    },
+    {
+      id: "heart",
+      emoji: "💖",
+      name: "Heart Garden",
+      tagline: "Taman tersembunyi penuh kasih sayang",
+      accent: "pink",
+      locked: !hasAnyProgress,
+      backdrop:
+        "bg-[linear-gradient(180deg,hsl(330_85%_75%)_0%,hsl(310_75%_70%)_50%,hsl(280_65%_60%)_100%)] dark:bg-[linear-gradient(180deg,hsl(330_55%_20%)_0%,hsl(310_50%_18%)_50%,hsl(280_55%_18%)_100%)]",
+      children: heart.map((s, i) => (
+        <StoryObject key={s.id} {...s} index={i} kind="heart" completed={completedIds.has(s.id)} />
+      )),
+    },
+  ];
 
-      {/* HERO — entry to magical world */}
-      <section className="relative overflow-hidden min-h-[80vh] flex items-center px-4 py-12">
-        <div className="relative max-w-5xl mx-auto w-full flex flex-col md:flex-row items-center gap-8 z-10">
+  const handleZoneChange = (zone: WorldZoneDef) => {
+    // Notify the global mascot
+    window.dispatchEvent(new CustomEvent("mopikoo:zone", { detail: zone }));
+  };
+
+  // ───────────────────────── Entry portal screen ─────────────────────────
+  if (!entered) {
+    return (
+      <div className="relative min-h-screen flex flex-col items-center justify-center px-4 overflow-hidden">
+        <Navbar />
+        <div className="relative max-w-2xl w-full text-center z-10">
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
-            className="flex-1 text-center md:text-left"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="inline-flex items-center gap-2 glass-bubble font-bold text-xs px-4 py-1.5 rounded-full mb-5 text-primary shadow-glow-primary"
           >
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-2 glass-bubble font-bold text-xs px-4 py-1.5 rounded-full mb-4 text-primary shadow-glow-primary"
-            >
-              <Sparkles size={12} className="animate-twinkle" />
-              Selamat datang di Dunia Mopikoo ✨
-            </motion.div>
+            <Sparkles size={12} className="animate-pulse" />
+            Selamat datang di Dunia Mopikoo
+          </motion.div>
 
-            <h1 className="text-3xl md:text-5xl font-black font-display text-foreground leading-tight">
-              Masuki dunia di mana{" "}
-              <span className="gradient-text">cerita hidup</span> dan{" "}
-              <span className="text-primary text-shadow-glow">petualangan menanti</span> 🌙
-            </h1>
-            <p className="mt-4 text-muted-foreground text-base md:text-lg max-w-lg mx-auto md:mx-0">
-              Jelajahi zona-zona ajaib bersama Mopikoo. Setiap pintu, hutan, dan lembah menyimpan cerita yang akan dicintai anakmu.
-            </p>
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="text-3xl md:text-5xl font-black font-display text-foreground leading-tight"
+          >
+            Sebuah dunia di mana <span className="gradient-text">cerita hidup</span>{" "}
+            menanti untuk dijelajahi 🌙
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="mt-4 text-muted-foreground text-base md:text-lg"
+          >
+            Geser ke samping untuk berpindah dari Lembah Tidur, Hutan Ajaib, hingga Tanah Petualangan.
+            Mopikoo akan memandumu di setiap zona ✨
+          </motion.p>
 
-            <div className="mt-7 flex flex-wrap gap-3 justify-center md:justify-start">
-              <Link
-                to="/library"
-                className="group relative inline-flex items-center gap-2 magical-button text-primary-foreground font-extrabold px-7 py-4 rounded-3xl text-base animate-pulse-magic"
-              >
-                <BookOpen size={20} />
-                Mulai Petualangan
-                <motion.span
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                >
-                  ✨
-                </motion.span>
-              </Link>
-              <Link
-                to="/parent"
-                className="inline-flex items-center gap-2 glass-bubble text-foreground font-bold px-6 py-4 rounded-3xl text-sm bounce-hover"
-              >
-                <Star size={16} className="text-primary" /> Untuk Orang Tua
-              </Link>
-            </div>
-
-            <div className="mt-6 flex items-center gap-3 justify-center md:justify-start">
-              <div className="flex -space-x-2">
-                {["🧒", "👧", "👦"].map((e, i) => (
-                  <div key={i} className="w-9 h-9 rounded-full glass-bubble flex items-center justify-center text-base">
-                    {e}
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground font-semibold">
-                Dipercaya <span className="text-primary font-extrabold">1,000+</span> keluarga ajaib
-              </p>
-            </div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.6 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.45, type: "spring", stiffness: 180 }}
+            className="my-8 flex justify-center"
+          >
+            <MascotInteractive size={180} mood="wave" />
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.7 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3, type: "spring", stiffness: 180 }}
-            className="flex-shrink-0"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="flex flex-wrap gap-3 justify-center"
           >
-            <MascotInteractive size={210} mood="wave" />
+            <button
+              onClick={() => setEntered(true)}
+              className="group relative inline-flex items-center gap-2 magical-button text-primary-foreground font-extrabold px-8 py-4 rounded-3xl text-base animate-pulse"
+            >
+              <BookOpen size={20} />
+              Masuk ke Dunia Ajaib
+              <motion.span
+                animate={{ rotate: 360 }}
+                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+              >
+                ✨
+              </motion.span>
+            </button>
+            <Link
+              to="/parent"
+              className="inline-flex items-center gap-2 glass-bubble text-foreground font-bold px-6 py-4 rounded-3xl text-sm bounce-hover"
+            >
+              Untuk Orang Tua
+            </Link>
+          </motion.div>
+
+          {/* Zone preview pills */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+            className="mt-8 flex flex-wrap gap-2 justify-center"
+          >
+            {zones.map((z, i) => (
+              <span
+                key={z.id}
+                className="glass-bubble rounded-full px-3 py-1.5 text-xs font-bold text-foreground flex items-center gap-1.5"
+              >
+                <span>{z.emoji}</span> {z.name}
+                {z.locked && <span className="opacity-60">🔒</span>}
+              </span>
+            ))}
           </motion.div>
         </div>
+      </div>
+    );
+  }
 
-        {/* Scroll cue */}
-        <motion.div
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 text-2xl"
-          animate={{ y: [0, 8, 0], opacity: [0.4, 1, 0.4] }}
-          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-        >
-          ⬇️
-        </motion.div>
-      </section>
-
-      {/* Continue Reading — magical bookmark portal */}
-      {continueReading.length > 0 && (
-        <section className="px-4 py-2 max-w-5xl mx-auto relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="glass-bubble rounded-3xl p-4 shadow-glow-primary"
-          >
-            <h2 className="text-base font-extrabold text-foreground mb-3 flex items-center gap-2">
-              <BookOpen size={18} className="text-primary" /> Lanjutkan Petualanganmu
-            </h2>
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide">
-              {continueReading.map(([id, p]: any) => (
-                <Link
-                  key={id}
-                  to={`/story/${id}`}
-                  className="flex items-center gap-3 glass-card rounded-2xl p-3 bounce-hover flex-shrink-0 min-w-[220px]"
-                >
-                  <img src={p.cover} alt="" className="w-12 h-12 rounded-xl object-cover" />
-                  <div className="min-w-0">
-                    <p className="font-bold text-xs text-foreground truncate">{p.title}</p>
-                    <div className="mt-1 h-1.5 bg-muted rounded-full overflow-hidden w-24">
-                      <div className="h-full gradient-magic rounded-full" style={{ width: `${((p.currentPage + 1) / p.totalPages) * 100}%` }} />
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </motion.div>
-        </section>
-      )}
-
-      {/* WORLD MAP — explorable zones */}
-      <WorldZone
-        emoji="🌙"
-        name="Bedtime Valley"
-        tagline="Cerita lembut untuk menutup hari dengan damai"
-        accent="purple"
-      >
-        {bedtimeStories.map((s, i) => (
-          <StoryPortal key={s.id} {...s} index={i} />
-        ))}
-      </WorldZone>
-
-      <WorldZone
-        emoji="🌲"
-        name="Magic Forest"
-        tagline="Hutan penuh keajaiban dan rasa ingin tahu"
-        accent="teal"
-      >
-        {forestStories.map((s, i) => (
-          <StoryPortal key={s.id} {...s} index={i} />
-        ))}
-        {forestStories.length === 0 && stories.slice(0, 2).map((s, i) => (
-          <StoryPortal key={`f-${s.id}`} {...s} index={i} />
-        ))}
-      </WorldZone>
-
-      <WorldZone
-        emoji="🏰"
-        name="Adventure Land"
-        tagline="Petualangan seru untuk pemberani kecil"
-        accent="orange"
-      >
-        {adventureStories.map((s, i) => (
-          <StoryPortal key={s.id} {...s} index={i} />
-        ))}
-      </WorldZone>
-
-      <WorldZone
-        emoji="💖"
-        name="Heart Garden"
-        tagline="Cerita penuh kebaikan dan kasih sayang"
-        accent="pink"
-      >
-        {stories.filter((s) => s.category === "Moral Stories").map((s, i) => (
-          <StoryPortal key={s.id} {...s} index={i} />
-        ))}
-      </WorldZone>
-
-      {/* Final invite portal */}
-      <section className="px-4 py-12 max-w-5xl mx-auto relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="relative overflow-hidden glass-bubble rounded-[2.5rem] p-8 md:p-12 flex flex-col md:flex-row items-center gap-6 text-center md:text-left shadow-magic"
-        >
-          <div className="absolute inset-0 gradient-aurora opacity-40 pointer-events-none" />
-          <div className="absolute top-4 right-8 text-4xl animate-twinkle">⭐</div>
-          <div className="absolute bottom-4 left-8 text-2xl animate-twinkle" style={{ animationDelay: "1s" }}>✨</div>
-
-          <div className="relative z-10">
-            <MascotInteractive size={130} mood="celebrate" />
-          </div>
-          <div className="relative z-10 flex-1">
-            <h3 className="text-2xl font-black font-display text-foreground">
-              Siap memulai perjalanan? 🚪
-            </h3>
-            <p className="text-muted-foreground mt-2 text-sm md:text-base">
-              Pilih buku ajaibmu — Mopikoo akan memandu langkah demi langkah dalam dunia cerita.
-            </p>
-            <Link
-              to="/library"
-              className="inline-flex items-center gap-2 mt-5 magical-button text-primary-foreground font-extrabold px-6 py-3.5 rounded-3xl text-sm bounce-hover animate-pulse-magic"
-            >
-              ✨ Start Journey
-            </Link>
-          </div>
-        </motion.div>
-      </section>
+  // ───────────────────────── World map view ─────────────────────────
+  return (
+    <div className="relative h-screen overflow-hidden">
+      <Navbar />
+      <WorldMap zones={zones} onZoneChange={handleZoneChange} />
     </div>
   );
 };
