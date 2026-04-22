@@ -56,6 +56,21 @@ const CompanionMascot = () => {
     return () => clearTimeout(t);
   }, [location.pathname, hidden]);
 
+  // React to zone changes from the world map
+  useEffect(() => {
+    if (hidden) return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { id?: string } | undefined;
+      const zoneId = detail?.id;
+      if (!zoneId) return;
+      const list = hintsByZone[zoneId] || fallback;
+      setHint(list[Math.floor(Math.random() * list.length)]);
+      setBounceKey((k) => k + 1);
+    };
+    window.addEventListener("mopikoo:zone", handler);
+    return () => window.removeEventListener("mopikoo:zone", handler);
+  }, [hidden]);
+
   if (hidden) return null;
 
   const handleTap = () => {
